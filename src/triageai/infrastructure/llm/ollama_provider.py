@@ -10,6 +10,7 @@ import json
 from typing import TYPE_CHECKING
 
 from triageai.domain.models import Classification, EvidenceSnippet, Ticket, TicketCategory, Urgency
+from triageai.infrastructure.llm.resilience import call_with_resilience
 
 if TYPE_CHECKING:
     from langchain_ollama import ChatOllama
@@ -61,14 +62,18 @@ class OllamaLLMProvider:
     async def classify(self, ticket: Ticket) -> Classification:
         client = self._get_client()
         prompt = _CLASSIFY_PROMPT.format(subject=ticket.subject, body=ticket.body)
-        response = await client.ainvoke(prompt)
-        payload = json.loads(_extract_json(_message_text(response.content)))
-        return Classification(
-            category=TicketCategory(payload["category"]),
-            urgency=Urgency(payload["urgency"]),
-            confidence=float(payload["confidence"]),
-            rationale=payload["rationale"],
-        )
+
+        async def _call() -> Classification:
+            response = await client.ainvoke(prompt)
+            payload = json.loads(_extract_json(_message_text(response.content)))
+            return Classification(
+                category=TicketCategory(payload["category"]),
+                urgency=Urgency(payload["urgency"]),
+                confidence=float(payload["confidence"]),
+                rationale=payload["rationale"],
+            )
+
+        return await call_with_resilience(_call)
 
     async def draft_response(
         self, ticket: Ticket, classification: Classification, evidence: list[EvidenceSnippet]
@@ -84,8 +89,12 @@ class OllamaLLMProvider:
             urgency=classification.urgency.value,
             evidence=evidence_block,
         )
-        response = await client.ainvoke(prompt)
-        return str(response.content)
+
+        async def _call() -> str:
+            response = await client.ainvoke(prompt)
+            return str(response.content)
+
+        return await call_with_resilience(_call)
 
 
 def _extract_json(text: str) -> str:

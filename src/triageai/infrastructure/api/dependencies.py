@@ -2,8 +2,9 @@
 
 This is the one place that knows about concrete infrastructure classes.
 Everything above it (application, domain) only knows about the Protocols in
-domain/interfaces.py. Swapping the in-memory graph repo for a real Neo4j one
-in Phase 3 means changing exactly this file.
+domain/interfaces.py. Swapping the in-memory graph/ticket repos for the real
+Neo4j-backed ones is controlled entirely by TRIAGEAI_USE_IN_MEMORY_GRAPH —
+no other file changes.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from functools import lru_cache
 
 from triageai.application.pipeline import TriagePipeline
 from triageai.config import Settings, get_settings
+from triageai.domain.interfaces import GraphMemoryRepository, TicketRepository
 from triageai.infrastructure.llm.provider_factory import build_llm_provider
 from triageai.infrastructure.persistence.chroma_knowledge_repository import (
     ChromaKnowledgeRepository,
@@ -19,6 +21,11 @@ from triageai.infrastructure.persistence.chroma_knowledge_repository import (
 from triageai.infrastructure.persistence.in_memory_repositories import (
     InMemoryGraphMemoryRepository,
     InMemoryTicketRepository,
+)
+from triageai.infrastructure.persistence.neo4j_repositories import (
+    Neo4jConnection,
+    Neo4jGraphMemoryRepository,
+    Neo4jTicketRepository,
 )
 
 _SAMPLE_KB_DOCS = [
@@ -69,13 +76,29 @@ def get_vector_repo() -> ChromaKnowledgeRepository:
 
 
 @lru_cache
-def get_graph_repo() -> InMemoryGraphMemoryRepository:
-    return InMemoryGraphMemoryRepository()
+def get_neo4j_connection() -> Neo4jConnection:
+    settings = get_cached_settings()
+    return Neo4jConnection(
+        uri=settings.neo4j_uri,
+        user=settings.neo4j_user,
+        password=settings.neo4j_password or "",
+    )
 
 
 @lru_cache
-def get_ticket_repo() -> InMemoryTicketRepository:
-    return InMemoryTicketRepository()
+def get_graph_repo() -> GraphMemoryRepository:
+    settings = get_cached_settings()
+    if settings.use_in_memory_graph:
+        return InMemoryGraphMemoryRepository()
+    return Neo4jGraphMemoryRepository(get_neo4j_connection())
+
+
+@lru_cache
+def get_ticket_repo() -> TicketRepository:
+    settings = get_cached_settings()
+    if settings.use_in_memory_graph:
+        return InMemoryTicketRepository()
+    return Neo4jTicketRepository(get_neo4j_connection())
 
 
 @lru_cache
@@ -89,3 +112,10 @@ def get_pipeline() -> TriagePipeline:
         ticket_repo=get_ticket_repo(),
         confidence_threshold=settings.confidence_threshold,
     )
+
+
+async def shutdown_resources() -> None:
+    """Called from the FastAPI lifespan handler on shutdown."""
+    settings = get_cached_settings()
+    if not settings.use_in_memory_graph:
+        await get_neo4j_connection().close()

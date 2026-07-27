@@ -4,23 +4,42 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, Response
 
 from triageai.config import get_settings
+from triageai.infrastructure.api.dependencies import get_cached_settings, shutdown_resources
 from triageai.infrastructure.api.routes import router
 from triageai.logging_config import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = get_cached_settings()
+    if not settings.use_in_memory_graph:
+        from triageai.infrastructure.api.dependencies import get_neo4j_connection
+        from triageai.infrastructure.persistence.neo4j_repositories import ensure_indexes
+
+        connection = get_neo4j_connection()
+        await connection.verify_connectivity()
+        await ensure_indexes(connection)
+        logger.info("neo4j_ready", uri=settings.neo4j_uri)
+
+    yield
+
+    await shutdown_resources()
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="TriageAI", version="0.1.0")
+    app = FastAPI(title="TriageAI", version="0.1.0", lifespan=_lifespan)
     app.include_router(router)
 
     @app.middleware("http")

@@ -7,16 +7,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from triageai.application.pipeline import TriagePipeline
+from triageai.domain.interfaces import TicketRepository
 from triageai.domain.models import Ticket, TicketInput, TriageResult
 from triageai.infrastructure.api.dependencies import get_pipeline, get_ticket_repo
-from triageai.infrastructure.persistence.in_memory_repositories import InMemoryTicketRepository
 from triageai.logging_config import get_logger
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 PipelineDep = Annotated[TriagePipeline, Depends(get_pipeline)]
-TicketRepoDep = Annotated[InMemoryTicketRepository, Depends(get_ticket_repo)]
+TicketRepoDep = Annotated[TicketRepository, Depends(get_ticket_repo)]
 
 
 @router.get("/healthz")
