@@ -42,12 +42,15 @@ class FakeLLMProvider:
     ) -> str:
         if not evidence:
             return (
-                f"Thanks for reaching out about '{ticket.subject}'. "
-                "I don't have a matching knowledge-base article yet, so this has been "
-                "routed to a human agent for review."
+                "I don't have a matching knowledge-base article for this yet, so this "
+                "has been routed to a human agent for review."
             )
         lead = evidence[0]
-        return (
-            f"Thanks for reaching out about '{ticket.subject}'. Based on "
-            f"[{lead.source_id}] {lead.title}: {lead.text[:200]}"
-        )
+        # Cite the FIRST sentence of the evidence only. Quoting the full
+        # multi-sentence snippet would produce sentences after the first with
+        # no repeated citation, which our per-sentence groundedness checker
+        # (domain/groundedness.py) correctly flags as unsupported — that's
+        # the checker doing its job, not a bug, but it isn't the case this
+        # fake/deterministic provider exists to exercise.
+        first_sentence = lead.text.split(". ")[0].rstrip(".")
+        return f"[{lead.source_id}] {first_sentence}."

@@ -42,7 +42,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["scripts"]
+pythonpath = ["scripts", "eval"]
 markers = [
     "integration: requires external services (Neo4j, Ollama) to be running",
 ]
