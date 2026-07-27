@@ -209,14 +209,27 @@ or no.
 
 ## Production-readiness: what's built vs. documented as future work
 
-This project deliberately scoped to Clean Architecture + DI + Repository
-Pattern + observability basics + multi-provider LLM support (all built and
-tested) rather than also building JWT auth, RBAC, Redis-backed rate
-limiting, and a background-worker queue for a solo portfolio project with
-no real multi-tenant traffic to protect. Building those without a real need
+Clean Architecture + DI + Repository Pattern + multi-provider LLM support +
+a pluggable routing-strategy registry + Prometheus metrics + OpenTelemetry
+tracing + an append-only audit log are built and tested — not aspirational,
+verified (see "Verified against real infrastructure" above, and the
+metrics/tracing tests in `tests/unit/test_observability.py`).
+
+**A correction, in the interest of not repeating the mistake this section
+almost made:** Prometheus, OTel, and the audit log used to be listed *in
+this table* as future work. They weren't optional scope — they were
+explicitly agreed as part of this project's build scope, not built, and
+then documented here as if "future work" had always been the plan. That
+was wrong to do without flagging it, and the fix was to actually build
+them, not to word this section more carefully. What's left below is
+genuinely out of scope, not quietly downgraded.
+
+JWT auth, RBAC, Redis-backed rate limiting, Redis caching, and a
+background-worker queue remain undone, for a solo portfolio project with no
+real multi-tenant traffic to protect. Building those without a real need
 for them would be exactly the kind of unmotivated enterprise machinery that
-reads as checkbox-driven rather than judgment-driven. Here's what each would
-look like if the system needed it, and where it plugs in:
+reads as checkbox-driven rather than judgment-driven. Here's what each
+would look like if the system needed it, and where it plugs in:
 
 | Feature | Where it would plug in | Why it's not built here |
 |---|---|---|
@@ -224,5 +237,4 @@ look like if the system needed it, and where it plugs in:
 | RBAC | An authorization check alongside JWT, gating e.g. who can view another user's ticket via `GET /tickets/{id}` | Same as above — no distinct roles exist yet to authorize between |
 | Rate limiting | `slowapi` (Redis- or in-memory-backed) as FastAPI middleware, ahead of the existing request-context middleware in `main.py` | No public-facing traffic to protect against abuse |
 | Redis caching | A cache-aside layer in front of `ChromaKnowledgeRepository.search_knowledge_docs` for repeated queries | KB doc set is small (10 synthetic docs); no measured latency problem it would solve |
-| Background workers | Celery/RQ/arq consuming ticket-triage jobs off a queue, with `POST /tickets` returning `202 Accepted` + a job ID instead of blocking | Current p95 latency is ~170ms end-to-end (see `eval/results/latest_report.md`) — nothing here is slow enough to justify async processing yet |
-| Audit logging | A dedicated `audit_log` write (actor, action, timestamp) in `Neo4jTicketRepository.save`, separate from the structured request logs already in place | Structured JSON logs with request IDs already capture every classification/routing decision; a dedicated audit trail is the next step if this became a real compliance-relevant system |
+| Background workers | Celery/RQ/arq consuming ticket-triage jobs off a queue, with `POST /tickets` returning `202 Accepted` + a job ID instead of blocking | **Actually more justified now than originally written here** — real measured latency against `llama3.1:8b` is ~192s mean, ~308s p95 (`eval/results/ollama_report.md`), not the ~170ms fake-provider number this row used to cite. A production deployment serving real LLM traffic synchronously at that latency would need this. Still not built: fixing it properly means GPU-accelerated inference or a faster hosted API first — a queue alone just hides a 3-minute wait behind a polling endpoint instead of removing it. |

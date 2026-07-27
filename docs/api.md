@@ -29,6 +29,24 @@ curl http://localhost:8000/readyz
 {"status": "ready"}
 ```
 
+## `GET /metrics`
+
+Prometheus-format metrics (`prometheus-fastapi-instrumentator` defaults):
+request counts and latency histograms per route, in-progress request gauge.
+
+```
+curl http://localhost:8000/metrics
+```
+
+```
+http_requests_total{handler="/tickets",method="POST",status="2xx"} 3.0
+http_request_duration_seconds_bucket{handler="/tickets",le="0.5"} 0.0
+...
+```
+
+Every request is also traced via OpenTelemetry (`opentelemetry-instrumentation-fastapi`)
+— see `docs/architecture.md` for exporter configuration.
+
 ## `POST /tickets`
 
 Submits a ticket for triage. Runs the full 5-stage pipeline synchronously

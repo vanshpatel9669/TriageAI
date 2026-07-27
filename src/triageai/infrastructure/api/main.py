@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request, Response
 from triageai.config import get_settings
 from triageai.infrastructure.api.dependencies import get_cached_settings, shutdown_resources
 from triageai.infrastructure.api.routes import router
+from triageai.infrastructure.observability import configure_tracing, instrument_app
 from triageai.logging_config import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -38,9 +39,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
+    configure_tracing(
+        settings.service_name, settings.otel_console_export, settings.otel_exporter_otlp_endpoint
+    )
 
     app = FastAPI(title="TriageAI", version="0.1.0", lifespan=_lifespan)
     app.include_router(router)
+    instrument_app(app)
 
     @app.middleware("http")
     async def request_context_middleware(

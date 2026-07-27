@@ -87,8 +87,12 @@ design decision behind them are in
 
 Python 3.11 · FastAPI (async) · LangGraph · LangChain · Neo4j (graph memory)
 · Chroma (vector search) · Pydantic v2 · pytest · Docker Compose ·
-GitHub Actions · structured JSON logging (`structlog`) · OpenTelemetry-ready
-request IDs and latency instrumentation
+GitHub Actions · structured JSON logging (`structlog`) with request-ID
+correlation · **Prometheus metrics** at `/metrics`
+(`prometheus-fastapi-instrumentator`) · **OpenTelemetry tracing**
+(`opentelemetry-instrumentation-fastapi`, console exporter by default, one
+config value to point at a real OTLP backend instead) · an append-only
+**audit log** for every triage decision (Neo4j)
 
 ## Quickstart
 
