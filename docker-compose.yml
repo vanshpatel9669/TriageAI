@@ -1,0 +1,53 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      TRIAGEAI_LLM_PROVIDER: ${TRIAGEAI_LLM_PROVIDER:-ollama}
+      TRIAGEAI_OLLAMA_MODEL: ${TRIAGEAI_OLLAMA_MODEL:-llama3.1:8b}
+      TRIAGEAI_OLLAMA_BASE_URL: http://ollama:11434
+      TRIAGEAI_OPENAI_MODEL: ${TRIAGEAI_OPENAI_MODEL:-gpt-4o-mini}
+      TRIAGEAI_OPENAI_API_KEY: ${TRIAGEAI_OPENAI_API_KEY:-}
+      TRIAGEAI_CHROMA_PERSIST_DIR: /app/data/chroma
+      TRIAGEAI_NEO4J_URI: bolt://neo4j:7687
+      TRIAGEAI_NEO4J_USER: neo4j
+      TRIAGEAI_NEO4J_PASSWORD: ${TRIAGEAI_NEO4J_PASSWORD:-triageai-dev-password}
+      TRIAGEAI_USE_IN_MEMORY_GRAPH: "false"
+      TRIAGEAI_LOG_LEVEL: ${TRIAGEAI_LOG_LEVEL:-INFO}
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - chroma_data:/app/data/chroma
+
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474" # browser UI
+      - "7687:7687" # bolt
+    environment:
+      NEO4J_AUTH: neo4j/${TRIAGEAI_NEO4J_PASSWORD:-triageai-dev-password}
+      NEO4J_PLUGINS: "[]" # full-text index procedures are core, no APOC needed
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -O /dev/null -q http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Optional local LLM runtime. After first `docker compose up`, pull a model:
+  #   docker compose exec ollama ollama pull llama3.1:8b
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  neo4j_data:
+  chroma_data:
+  ollama_data:

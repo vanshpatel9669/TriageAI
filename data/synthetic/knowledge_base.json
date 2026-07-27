@@ -1,0 +1,62 @@
+[
+  {
+    "id": "kb-access-01",
+    "title": "Resetting a locked account password",
+    "text": "If a user is locked out after failed login attempts, direct them to the self-service password reset portal at reset.internal.example. Accounts unlock automatically after 30 minutes, or an admin can unlock immediately via the IAM console.",
+    "category": "access"
+  },
+  {
+    "id": "kb-access-02",
+    "title": "Requesting elevated system permissions",
+    "text": "Elevated or admin permissions require a manager-approved access request submitted through the IAM portal. Standard approval turnaround is 1 business day; emergency access can be granted by the on-call security engineer with a documented justification.",
+    "category": "access"
+  },
+  {
+    "id": "kb-hardware-01",
+    "title": "Requesting new hardware",
+    "text": "New laptop or monitor requests go through the hardware request form in the internal portal. Standard turnaround is 5 business days. Urgent hardware failures (device won't power on) should be flagged as high urgency for same-day loaner issuance.",
+    "category": "hardware"
+  },
+  {
+    "id": "kb-hardware-02",
+    "title": "Laptop won't power on",
+    "text": "First confirm the charger and outlet both work with another device. If the laptop still won't power on, hold the power button for 15 seconds to force a hardware reset. If that fails, issue a loaner from the IT closet and file a hardware repair ticket with asset tag.",
+    "category": "hardware"
+  },
+  {
+    "id": "kb-software-01",
+    "title": "Application crashes on startup",
+    "text": "Application crashes on launch are usually resolved by clearing the local app cache (Settings > Storage > Clear Cache) and reinstalling the latest version from the internal app catalog. If the crash persists, collect the crash log from %LOCALAPPDATA%/CrashLogs and attach it to the ticket.",
+    "category": "software"
+  },
+  {
+    "id": "kb-software-02",
+    "title": "Software installation request",
+    "text": "New software installations must be requested through the software catalog. Pre-approved tools install automatically within 15 minutes; anything outside the catalog requires a security review before installation, typically 2-3 business days.",
+    "category": "software"
+  },
+  {
+    "id": "kb-network-01",
+    "title": "VPN connection failures",
+    "text": "VPN connection failures are most often caused by an expired client certificate. Ask the user to open the VPN client, select 'Renew Certificate', and restart the client. If the issue persists after renewal, escalate to network engineering.",
+    "category": "network"
+  },
+  {
+    "id": "kb-network-02",
+    "title": "Wi-Fi keeps disconnecting",
+    "text": "Intermittent Wi-Fi drops in office buildings are usually caused by AP roaming near floor boundaries. Ask the user to forget the network and reconnect. If the issue is isolated to one area, file a facilities ticket to check access point signal strength in that zone.",
+    "category": "network"
+  },
+  {
+    "id": "kb-account-01",
+    "title": "Updating account email or display name",
+    "text": "Legal name or display name changes require an HR-verified request routed through the identity management team, since it affects badge records and payroll systems. Email alias changes for preferred name can be self-serviced immediately from the profile settings page.",
+    "category": "account"
+  },
+  {
+    "id": "kb-account-02",
+    "title": "Merging duplicate user accounts",
+    "text": "Duplicate accounts (e.g. from a rehire) must be merged by the identity team, never deleted directly, to preserve audit history. Flag the duplicate account IDs and submit an account-merge request; expect 2-3 business days for completion.",
+    "category": "account"
+  }
+]
