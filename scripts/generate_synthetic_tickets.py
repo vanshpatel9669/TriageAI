@@ -217,13 +217,29 @@ TICKET_TEMPLATES = [
 ]
 
 SYSTEMS = [
-    "the CRM", "Okta", "the finance portal", "Slack", "the VPN client",
-    "SharePoint", "the design tool", "Jira", "the internal wiki", "Zoom",
+    "the CRM",
+    "Okta",
+    "the finance portal",
+    "Slack",
+    "the VPN client",
+    "SharePoint",
+    "the design tool",
+    "Jira",
+    "the internal wiki",
+    "Zoom",
 ]
 
 REQUESTERS = [
-    "alex.chen", "jordan.smith", "priya.raman", "sam.oconnor", "morgan.lee",
-    "taylor.nguyen", "casey.brooks", "riley.patel", "jamie.diaz", "avery.kim",
+    "alex.chen",
+    "jordan.smith",
+    "priya.raman",
+    "sam.oconnor",
+    "morgan.lee",
+    "taylor.nguyen",
+    "casey.brooks",
+    "riley.patel",
+    "jamie.diaz",
+    "avery.kim",
 ]
 
 

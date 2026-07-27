@@ -21,8 +21,28 @@ from triageai.domain.models import EvidenceSnippet, GroundednessCheck
 _CITATION_RE = re.compile(r"\[([\w.-]+)\]")
 _WORD_RE = re.compile(r"[a-z0-9]+")
 _STOPWORDS = {
-    "the", "a", "an", "is", "are", "was", "were", "to", "of", "and", "or",
-    "for", "in", "on", "with", "this", "that", "it", "be", "as", "by", "your",
+    "the",
+    "a",
+    "an",
+    "is",
+    "are",
+    "was",
+    "were",
+    "to",
+    "of",
+    "and",
+    "or",
+    "for",
+    "in",
+    "on",
+    "with",
+    "this",
+    "that",
+    "it",
+    "be",
+    "as",
+    "by",
+    "your",
 }
 
 

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,ollama,openai]"
+      - name: ruff check
+        run: ruff check src tests scripts eval
+      - name: ruff format check
+        run: ruff format --check src tests scripts eval
+      - name: mypy
+        run: mypy src
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      neo4j:
+        image: neo4j:5-community
+        env:
+          NEO4J_AUTH: neo4j/triageai-dev-password
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "wget -O /dev/null -q http://localhost:7474 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev,ollama,openai]"
+      - name: Generate synthetic dataset
+        run: python scripts/generate_synthetic_tickets.py
+      - name: Run tests (unit + integration; Ollama-dependent tests skip — no
+          Ollama in CI, same as local without it installed)
+        run: pytest tests/ -v --cov=src/triageai --cov-report=term-missing
+      - name: Run evaluation (fake provider — see eval/results/latest_report.md
+          for what this measures)
+        run: python eval/run_evaluation.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: eval/results/
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t triageai:ci .
+      - name: Smoke test the built image
+        run: |
+          docker run -d --name triageai-smoke -p 8000:8000 \
+            -e TRIAGEAI_LLM_PROVIDER=fake triageai:ci
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8000/healthz; then break; fi
+            sleep 2
+          done
+          curl -sf http://localhost:8000/healthz
+          docker logs triageai-smoke
+          docker stop triageai-smoke

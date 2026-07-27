@@ -17,7 +17,12 @@ async def test_classify_returns_a_valid_classification():
     classification = await provider.classify(ticket)
 
     assert classification.category.value in (
-        "access", "hardware", "software", "network", "account", "other",
+        "access",
+        "hardware",
+        "software",
+        "network",
+        "account",
+        "other",
     )
     assert 0.0 <= classification.confidence <= 1.0
 
@@ -30,7 +35,7 @@ async def test_draft_response_cites_provided_evidence():
         body="Can't log in, account locked after failed attempts.",
         requester_email="user@example.com",
     )
-    classification = (await provider.classify(ticket))
+    classification = await provider.classify(ticket)
     evidence = [
         EvidenceSnippet(
             source_id="kb-access-01",
