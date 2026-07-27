@@ -19,7 +19,7 @@
 | Mean supported-claim ratio | 88.3% | average fraction of a draft's sentences that were grounded |
 | Escalation precision | 100.0% | of tickets routed to human review, fraction with a genuine reason per our own routing policy (misclassified, high-risk category, or ungrounded) |
 | Escalation recall | 61.8% | of tickets with a genuine reason to escalate, fraction actually routed to human review |
-| Latency (mean / p50 / p95 / max) | 98.3ms / 97.2ms / 107.8ms / 123.4ms | end-to-end pipeline.run() wall-clock time |
+| Latency (mean / p50 / p95 / max) | 98.5ms / 97.0ms / 115.5ms / 127.7ms | end-to-end pipeline.run() wall-clock time |
 
 ## Known limitations of this measurement
 

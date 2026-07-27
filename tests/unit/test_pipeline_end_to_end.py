@@ -6,6 +6,9 @@ import pytest
 
 from triageai.application.pipeline import TriagePipeline
 from triageai.domain.models import RoutingDecision, Ticket
+from triageai.domain.routing_strategies.confidence_and_risk import (
+    ConfidenceAndRiskRoutingStrategy,
+)
 from triageai.infrastructure.llm.fake_provider import FakeLLMProvider
 from triageai.infrastructure.persistence.chroma_knowledge_repository import (
     ChromaKnowledgeRepository,
@@ -46,7 +49,7 @@ def pipeline(repos):
         vector_repo=repos["vector_repo"],
         graph_repo=repos["graph_repo"],
         ticket_repo=repos["ticket_repo"],
-        confidence_threshold=0.75,
+        routing_strategy=ConfidenceAndRiskRoutingStrategy(confidence_threshold=0.75),
     )
 
 

@@ -9,6 +9,9 @@ from triageai.application.nodes.drafting import DraftingNode
 from triageai.application.nodes.routing import RoutingNode
 from triageai.domain.exceptions import LLMUnavailableError
 from triageai.domain.models import Classification, TicketCategory, Urgency
+from triageai.domain.routing_strategies.confidence_and_risk import (
+    ConfidenceAndRiskRoutingStrategy,
+)
 
 
 class _AlwaysDownLLM:
@@ -47,7 +50,7 @@ async def test_llm_outage_end_to_end_routes_to_human_review(sample_ticket):
     """Both fallbacks compose correctly with the existing routing safety net."""
     classification_node = ClassificationNode(llm=_AlwaysDownLLM())
     drafting_node = DraftingNode(llm=_AlwaysDownLLM())
-    routing_node = RoutingNode(confidence_threshold=0.75)
+    routing_node = RoutingNode(ConfidenceAndRiskRoutingStrategy(confidence_threshold=0.75))
 
     classification_result = await classification_node({"ticket": sample_ticket})
     draft_result = await drafting_node(

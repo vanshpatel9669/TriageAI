@@ -14,6 +14,7 @@ from functools import lru_cache
 from triageai.application.pipeline import TriagePipeline
 from triageai.config import Settings, get_settings
 from triageai.domain.interfaces import GraphMemoryRepository, TicketRepository
+from triageai.domain.routing_strategies.registry import build_routing_strategy
 from triageai.infrastructure.llm.provider_factory import build_llm_provider
 from triageai.infrastructure.persistence.chroma_knowledge_repository import (
     ChromaKnowledgeRepository,
@@ -105,12 +106,15 @@ def get_ticket_repo() -> TicketRepository:
 def get_pipeline() -> TriagePipeline:
     settings = get_cached_settings()
     llm = build_llm_provider(settings)
+    routing_strategy = build_routing_strategy(
+        settings.routing_strategy, confidence_threshold=settings.confidence_threshold
+    )
     return TriagePipeline(
         llm=llm,
         vector_repo=get_vector_repo(),
         graph_repo=get_graph_repo(),
         ticket_repo=get_ticket_repo(),
-        confidence_threshold=settings.confidence_threshold,
+        routing_strategy=routing_strategy,
     )
 
 

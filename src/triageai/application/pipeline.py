@@ -20,6 +20,7 @@ from triageai.application.state import PipelineState
 from triageai.domain.interfaces import (
     GraphMemoryRepository,
     LLMProvider,
+    RoutingStrategy,
     TicketRepository,
     VectorSearchRepository,
 )
@@ -33,25 +34,25 @@ class TriagePipeline:
         vector_repo: VectorSearchRepository,
         graph_repo: GraphMemoryRepository,
         ticket_repo: TicketRepository,
-        confidence_threshold: float = 0.75,
+        routing_strategy: RoutingStrategy,
     ) -> None:
         self._graph_repo = graph_repo
         self._ticket_repo = ticket_repo
-        self._graph = self._build_graph(llm, vector_repo, graph_repo, confidence_threshold)
+        self._graph = self._build_graph(llm, vector_repo, graph_repo, routing_strategy)
 
     @staticmethod
     def _build_graph(
         llm: LLMProvider,
         vector_repo: VectorSearchRepository,
         graph_repo: GraphMemoryRepository,
-        confidence_threshold: float,
+        routing_strategy: RoutingStrategy,
     ) -> CompiledStateGraph:
         builder = StateGraph(PipelineState)
         builder.add_node("ingestion", IngestionNode())
         builder.add_node("classification", ClassificationNode(llm))
         builder.add_node("retrieval", RetrievalNode(vector_repo, graph_repo))
         builder.add_node("drafting", DraftingNode(llm))
-        builder.add_node("routing", RoutingNode(confidence_threshold))
+        builder.add_node("routing", RoutingNode(routing_strategy))
 
         builder.set_entry_point("ingestion")
         builder.add_edge("ingestion", "classification")

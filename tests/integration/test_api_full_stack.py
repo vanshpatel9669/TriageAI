@@ -67,7 +67,14 @@ def api_client(monkeypatch):
 def _delete_test_tickets_sync() -> None:
     import asyncio
 
-    asyncio.get_event_loop().run_until_complete(_delete_test_tickets())
+    # asyncio.get_event_loop() depends on ambient per-thread loop state that
+    # other async fixtures/tests running earlier in the same pytest session
+    # can leave in a state where no implicit loop exists to fall back on —
+    # raises "There is no current event loop in thread 'MainThread'" in that
+    # case, found by running this file alongside test_neo4j_repositories.py
+    # rather than alone. asyncio.run() creates and tears down its own loop
+    # every call, so it doesn't depend on that state at all.
+    asyncio.run(_delete_test_tickets())
 
 
 async def _delete_test_tickets() -> None:

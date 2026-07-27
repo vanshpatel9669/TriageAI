@@ -51,6 +51,9 @@ async def test_ticket_repository_save_and_get_round_trip(neo4j_connection):
     import tempfile
 
     from triageai.application.pipeline import TriagePipeline
+    from triageai.domain.routing_strategies.confidence_and_risk import (
+        ConfidenceAndRiskRoutingStrategy,
+    )
     from triageai.infrastructure.llm.fake_provider import FakeLLMProvider
     from triageai.infrastructure.persistence.chroma_knowledge_repository import (
         ChromaKnowledgeRepository,
@@ -68,7 +71,7 @@ async def test_ticket_repository_save_and_get_round_trip(neo4j_connection):
             vector_repo=vector_repo,
             graph_repo=InMemoryGraphMemoryRepository(),
             ticket_repo=ticket_repo,
-            confidence_threshold=0.75,
+            routing_strategy=ConfidenceAndRiskRoutingStrategy(confidence_threshold=0.75),
         )
         ticket = _ticket("roundtrip-1", "Locked out of account", "Password locked me out, urgent")
         result = await pipeline.run(ticket)

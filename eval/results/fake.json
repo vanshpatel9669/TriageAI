@@ -20,10 +20,10 @@
     "escalation_precision": 1.0,
     "escalation_recall": 0.6176,
     "latency": {
-      "mean_ms": 98.35,
-      "p50_ms": 97.23,
-      "p95_ms": 107.79,
-      "max_ms": 123.38
+      "mean_ms": 98.49,
+      "p50_ms": 97.05,
+      "p95_ms": 115.51,
+      "max_ms": 127.71
     }
   }
 }

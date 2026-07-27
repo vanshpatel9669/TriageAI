@@ -12,7 +12,9 @@ from typing import Protocol
 
 from triageai.domain.models import (
     Classification,
+    DraftResponse,
     EvidenceSnippet,
+    RoutingResult,
     Ticket,
     TriageResult,
 )
@@ -63,3 +65,18 @@ class LLMProvider(Protocol):
     async def draft_response(
         self, ticket: Ticket, classification: Classification, evidence: list[EvidenceSnippet]
     ) -> str: ...
+
+
+class RoutingStrategy(Protocol):
+    """Uniform interface every routing policy implements.
+
+    Adding a new routing strategy means writing one class satisfying this
+    Protocol and registering it in
+    `domain/routing_strategies/registry.py` — `RoutingNode`
+    (application/nodes/routing.py) never changes. Pure decision logic, no
+    I/O, so this stays in `domain/` rather than `infrastructure/`.
+    """
+
+    name: str
+
+    def evaluate(self, classification: Classification, draft: DraftResponse) -> RoutingResult: ...

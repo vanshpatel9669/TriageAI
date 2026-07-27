@@ -37,10 +37,18 @@ class Settings(BaseSettings):
 
     # Routing
     confidence_threshold: float = 0.75
+    # confidence_and_risk (default) | confidence_only — see
+    # domain/routing_strategies/registry.py to add another.
+    routing_strategy: str = "confidence_and_risk"
 
     # Observability
     log_level: str = "INFO"
     service_name: str = "triageai"
+    # Console exporter by default — real spans, zero external collector
+    # needed. Point at a real backend by setting an OTLP endpoint instead;
+    # see docs/architecture.md.
+    otel_console_export: bool = True
+    otel_exporter_otlp_endpoint: str | None = None
 
 
 def get_settings() -> Settings:

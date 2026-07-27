@@ -40,6 +40,7 @@ from metrics import EvaluationRun, compute_all_metrics  # noqa: E402
 from triageai.application.pipeline import TriagePipeline  # noqa: E402
 from triageai.config import get_settings  # noqa: E402
 from triageai.domain.models import Ticket  # noqa: E402
+from triageai.domain.routing_strategies.registry import build_routing_strategy  # noqa: E402
 from triageai.infrastructure.llm.provider_factory import build_llm_provider  # noqa: E402
 from triageai.infrastructure.persistence.chroma_knowledge_repository import (  # noqa: E402
     ChromaKnowledgeRepository,
@@ -90,12 +91,15 @@ async def run_evaluation() -> tuple[dict, list[dict]]:
             [{"id": d["id"], "title": d["title"], "text": d["text"]} for d in knowledge_base]
         )
 
+        routing_strategy = build_routing_strategy(
+            settings.routing_strategy, confidence_threshold=settings.confidence_threshold
+        )
         pipeline = TriagePipeline(
             llm=llm,
             vector_repo=vector_repo,
             graph_repo=InMemoryGraphMemoryRepository(),
             ticket_repo=InMemoryTicketRepository(),
-            confidence_threshold=settings.confidence_threshold,
+            routing_strategy=routing_strategy,
         )
 
         runs: list[EvaluationRun] = []
