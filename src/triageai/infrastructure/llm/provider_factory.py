@@ -22,7 +22,11 @@ def build_llm_provider(settings: Settings) -> LLMProvider:
     if provider == "ollama":
         from triageai.infrastructure.llm.ollama_provider import OllamaLLMProvider
 
-        return OllamaLLMProvider(model=settings.ollama_model, base_url=settings.ollama_base_url)
+        return OllamaLLMProvider(
+            model=settings.ollama_model,
+            base_url=settings.ollama_base_url,
+            timeout_s=settings.ollama_timeout_s,
+        )
 
     if provider == "openai":
         from triageai.infrastructure.llm.openai_provider import OpenAILLMProvider
@@ -31,7 +35,11 @@ def build_llm_provider(settings: Settings) -> LLMProvider:
             raise ValueError(
                 "TRIAGEAI_OPENAI_API_KEY must be set when TRIAGEAI_LLM_PROVIDER=openai"
             )
-        return OpenAILLMProvider(model=settings.openai_model, api_key=settings.openai_api_key)
+        return OpenAILLMProvider(
+            model=settings.openai_model,
+            api_key=settings.openai_api_key,
+            timeout_s=settings.openai_timeout_s,
+        )
 
     raise ValueError(
         f"Unknown LLM provider {provider!r}. Supported: fake, ollama, openai "

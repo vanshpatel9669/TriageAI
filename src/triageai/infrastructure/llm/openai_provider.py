@@ -31,9 +31,12 @@ class OpenAILLMProvider:
 
     name = "openai"
 
-    def __init__(self, model: str = "gpt-4o-mini", api_key: str | None = None) -> None:
+    def __init__(
+        self, model: str = "gpt-4o-mini", api_key: str | None = None, timeout_s: float = 20.0
+    ) -> None:
         self._model = model
         self._api_key = api_key
+        self._timeout_s = timeout_s
         self._client: ChatOpenAI | None = None
 
     def _get_client(self) -> ChatOpenAI:
@@ -59,7 +62,7 @@ class OpenAILLMProvider:
                 rationale=payload["rationale"],
             )
 
-        return await call_with_resilience(_call)
+        return await call_with_resilience(_call, timeout_s=self._timeout_s)
 
     async def draft_response(
         self, ticket: Ticket, classification: Classification, evidence: list[EvidenceSnippet]
@@ -80,4 +83,4 @@ class OpenAILLMProvider:
             response = await client.ainvoke(prompt)
             return str(response.content)
 
-        return await call_with_resilience(_call)
+        return await call_with_resilience(_call, timeout_s=self._timeout_s)

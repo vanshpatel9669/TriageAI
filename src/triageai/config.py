@@ -12,8 +12,15 @@ class Settings(BaseSettings):
     llm_provider: str = "fake"  # fake | ollama | openai
     ollama_model: str = "llama3.1:8b"
     ollama_base_url: str = "http://localhost:11434"
+    # Measured: a single classify() call against llama3.1:8b on CPU-only
+    # (no GPU) local inference took ~41s end to end. 15s (a reasonable
+    # default for a cloud API) was not enough and made every real call
+    # exhaust its retries — see the timeout postmortem in
+    # docs/architecture.md. 90s gives real margin above the measured value.
+    ollama_timeout_s: float = 90.0
     openai_model: str = "gpt-4o-mini"
     openai_api_key: str | None = None
+    openai_timeout_s: float = 20.0
 
     # Vector store
     chroma_persist_dir: str = "./data/chroma"
@@ -23,7 +30,10 @@ class Settings(BaseSettings):
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str | None = None
-    use_in_memory_graph: bool = True  # True until Neo4j is wired in Phase 3
+    # Default true so the app runs with zero external services out of the
+    # box; set false (and run `docker compose up neo4j`) for real graph
+    # memory — see infrastructure/persistence/neo4j_repositories.py.
+    use_in_memory_graph: bool = True
 
     # Routing
     confidence_threshold: float = 0.75

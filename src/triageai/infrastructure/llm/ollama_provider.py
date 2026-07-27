@@ -47,9 +47,11 @@ class OllamaLLMProvider:
         self,
         model: str = "llama3.1:8b",
         base_url: str = "http://localhost:11434",
+        timeout_s: float = 90.0,
     ) -> None:
         self._model = model
         self._base_url = base_url
+        self._timeout_s = timeout_s
         self._client: ChatOllama | None = None  # lazy: importing this module needs no dependency
 
     def _get_client(self) -> ChatOllama:
@@ -73,7 +75,7 @@ class OllamaLLMProvider:
                 rationale=payload["rationale"],
             )
 
-        return await call_with_resilience(_call)
+        return await call_with_resilience(_call, timeout_s=self._timeout_s)
 
     async def draft_response(
         self, ticket: Ticket, classification: Classification, evidence: list[EvidenceSnippet]
@@ -94,7 +96,7 @@ class OllamaLLMProvider:
             response = await client.ainvoke(prompt)
             return str(response.content)
 
-        return await call_with_resilience(_call)
+        return await call_with_resilience(_call, timeout_s=self._timeout_s)
 
 
 def _extract_json(text: str) -> str:

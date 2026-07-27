@@ -70,10 +70,19 @@ async def neo4j_connection() -> AsyncIterator[Neo4jConnection]:
     await connection.verify_connectivity()
     await ensure_indexes(connection)
     yield connection
-    # Clean up only the test-tagged nodes this suite creates (inttest- prefix),
-    # never a blanket wipe of whatever else might be in the database.
+    # Clean up only the test-tagged nodes this suite creates, never a blanket
+    # wipe of whatever else might be in the database. Two tags are needed:
+    # ticket_id STARTS WITH 'inttest-' catches tickets built directly against
+    # the repository (test_neo4j_repositories.py sets that prefix itself),
+    # but tickets created through the real API get a server-generated UUID
+    # instead — those are tagged by requester_email instead (see
+    # test_api_full_stack.py). Missing the second tag was a real gap: it let
+    # API-created test tickets leak into later runs' similar-ticket search
+    # results, found while manually smoke-testing the full stack.
     async with connection.session() as session:
         await session.run(  # type: ignore[attr-defined]
-            "MATCH (t:Ticket) WHERE t.ticket_id STARTS WITH 'inttest-' DETACH DELETE t"
+            "MATCH (t:Ticket) "
+            "WHERE t.ticket_id STARTS WITH 'inttest-' OR t.requester_email = 'inttest@example.com' "
+            "DETACH DELETE t"
         )
     await connection.close()
