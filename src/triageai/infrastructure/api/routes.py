@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from triageai.application.pipeline import TriagePipeline
 from triageai.domain.interfaces import TicketRepository
 from triageai.domain.models import Ticket, TicketInput, TriageResult
-from triageai.infrastructure.api.dependencies import get_pipeline, get_ticket_repo
+from triageai.infrastructure.api.dependencies import (
+    get_cached_settings,
+    get_neo4j_connection,
+    get_pipeline,
+    get_ticket_repo,
+)
 from triageai.logging_config import get_logger
 
 router = APIRouter()
@@ -26,6 +31,12 @@ async def healthz() -> dict:
 
 @router.get("/readyz")
 async def readyz(pipeline: PipelineDep) -> dict:
+    settings = get_cached_settings()
+    if not settings.use_in_memory_graph:
+        try:
+            await get_neo4j_connection().verify_connectivity()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=f"Neo4j not reachable: {exc}") from exc
     return {"status": "ready"}
 
 
