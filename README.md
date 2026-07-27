@@ -21,24 +21,51 @@ design rationale and every trade-off made along the way.
 ## What's actually measured, not claimed
 
 Every number below comes from `eval/run_evaluation.py`, is reproducible by
-running it yourself, and is labeled with which LLM provider produced it —
-see [`eval/results/latest_report.md`](eval/results/latest_report.md) for the
-full report including known limitations of the measurement itself.
+running it yourself, and is labeled with which LLM provider produced it. Full
+reports: [`eval/results/fake_report.md`](eval/results/fake_report.md) (pipeline
+wiring, deterministic) and
+[`eval/results/ollama_report.md`](eval/results/ollama_report.md) (real
+`llama3.1:8b`, CPU-only local inference).
 
-| Metric | Value (fake/keyword-rule provider, 60 synthetic tickets) |
-|---|---|
-| Classification accuracy | 76.7% |
-| Retrieval recall@k | 100.0% |
-| Groundedness rate | 76.7% |
-| Hallucination rate | 23.3% |
-| Escalation recall | 61.8% |
-| Latency (p50 / p95) | 96.9ms / 124.5ms |
+| Metric | `fake` provider (keyword rules) | `ollama` provider (real `llama3.1:8b`) |
+|---|---|---|
+| Classification accuracy | 76.7% | 75.0% |
+| Retrieval recall@k | 100.0% | 100.0% |
+| Groundedness rate | 76.7% | **0.0%** |
+| Hallucination rate | 23.3% | **100.0%** |
+| Escalation recall | 61.8% | 100.0% |
+| Latency (mean / p95) | 109ms / 156ms | **192s / 308s** |
 
-**These numbers describe pipeline wiring correctness on a controlled,
-synthetic, template-generated dataset — not LLM classification/generation
-quality, and not production performance.** Re-run with
-`TRIAGEAI_LLM_PROVIDER=ollama` (see Quickstart) once Ollama is installed to
-measure real LLM-quality numbers instead.
+Both runs: 60 synthetic tickets, 10 synthetic KB docs, 60/60 completed.
+
+**The `ollama` column is not a bug — it's the v1 groundedness heuristic's
+documented limitation showing up exactly as predicted against a real,
+verbose model.** `llama3.1:8b` writes full formatted replies ("Dear User,
+Thank you for reaching out... Best regards, IT Support"); the per-sentence
+citation checker (`domain/groundedness.py`) correctly flags every
+uncited greeting and closing as unsupported, because it is — a real NLI
+model would recognize those sentences as filler rather than claims, this
+v1 heuristic doesn't. That gap between heuristic and reality is stated
+explicitly as a limitation in `docs/architecture.md`, written *before* this
+run existed to confirm it.
+
+**What that gap does not do is break the safety property this whole project
+is built around: even at a 0% measured groundedness rate, 100% of tickets
+still correctly routed to human review** (escalation recall 100%) — the
+system never confidently auto-resolved something it couldn't back up. A
+naive "does it sound confident" check would have shipped these responses;
+the routing policy didn't, because it doesn't trust fluency.
+
+**The latency number is the other real finding worth not glossing over:**
+~192s mean, ~308s p95, on CPU-only local inference with no GPU. That's the
+honest cost of running a 7-8B model without acceleration, and it's the
+reason `eval/results/ollama_report.md` flags an open question its own data
+can't resolve: latency variance that wide (mean 192s vs. max 317s) is
+consistent with a small number of the 60 "completed" runs having hit the
+retry-exhaustion fallback path rather than a genuine model response, and this
+run predates the per-ticket logging (`ollama_raw.jsonl`) that would confirm
+or rule that out — added *because* reviewing these results surfaced the gap.
+A re-run with the current script answers it directly.
 
 ## Architecture
 
@@ -112,7 +139,8 @@ mypy src                                # type check
 pytest tests/ -v                        # unit + integration (integration tests
                                          # skip with an explicit reason if
                                          # Neo4j/Ollama aren't reachable)
-python eval/run_evaluation.py           # regenerate the evaluation report
+python eval/run_evaluation.py           # regenerate eval/results/{provider}_report.md
+                                         # (provider from TRIAGEAI_LLM_PROVIDER, default fake)
 ```
 
 ## Testing philosophy

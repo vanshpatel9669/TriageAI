@@ -9,7 +9,18 @@ Usage:
   TRIAGEAI_LLM_PROVIDER=ollama python eval/run_evaluation.py
     # requires Ollama running + model pulled
 
-Writes: eval/results/latest.json, eval/results/latest_report.md
+Writes, per provider (so a fake-provider run and a real-provider run never
+clobber each other — an earlier version of this script wrote to a single
+`latest.json`/`latest_report.md` regardless of provider, and a real Ollama
+run silently overwrote the fake-provider report):
+  eval/results/{provider}.json
+  eval/results/{provider}_report.md
+  eval/results/{provider}_raw.jsonl   — one line per ticket, for post-hoc
+    investigation (e.g. "did any ticket in this run actually hit the
+    LLM-unavailable fallback path rather than a genuine model response?" —
+    a question the aggregate metrics alone can't answer)
+  eval/results/latest.json, latest_report.md — copy of the most recent run,
+    for tooling that wants "whatever ran last" without knowing the provider
 """
 
 from __future__ import annotations
@@ -41,6 +52,13 @@ from triageai.infrastructure.persistence.in_memory_repositories import (  # noqa
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "synthetic"
 RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
+# Markers that identify a result as having gone through the safe-degradation
+# fallback path (application/nodes/classification.py, drafting.py) rather
+# than a genuine LLM response — used only to report this honestly, not to
+# change any metric's definition.
+_CLASSIFICATION_FALLBACK_MARKER = "Classification unavailable"
+_DRAFT_FALLBACK_MARKER = "Unable to generate a response automatically"
+
 
 def load_dataset() -> tuple[list[dict], list[dict]]:
     kb_path = DATA_DIR / "knowledge_base.json"
@@ -55,7 +73,13 @@ def load_dataset() -> tuple[list[dict], list[dict]]:
     return knowledge_base, tickets
 
 
-async def run_evaluation() -> dict:
+def _is_fallback_result(run: EvaluationRun) -> bool:
+    return _CLASSIFICATION_FALLBACK_MARKER in run.result.classification.rationale or (
+        _DRAFT_FALLBACK_MARKER in run.result.draft.text
+    )
+
+
+async def run_evaluation() -> tuple[dict, list[dict]]:
     knowledge_base, tickets = load_dataset()
     settings = get_settings()
     llm = build_llm_provider(settings)
@@ -89,8 +113,23 @@ async def run_evaluation() -> dict:
             except Exception as exc:  # noqa: BLE001 — record and continue, don't abort the whole eval run
                 errors.append({"ticket_id": ticket_dict["ticket_id"], "error": str(exc)})
 
+    raw_records = [
+        {
+            "ticket_id": run.ticket["ticket_id"],
+            "true_category": run.ticket["true_category"],
+            "predicted_category": run.result.classification.category.value,
+            "confidence": run.result.classification.confidence,
+            "is_grounded": run.result.draft.groundedness.is_grounded,
+            "routing_decision": run.result.routing.decision.value,
+            "latency_ms": run.result.latency_ms,
+            "hit_fallback_path": _is_fallback_result(run),
+        }
+        for run in runs
+    ]
+
+    fallback_count = sum(1 for r in raw_records if r["hit_fallback_path"])
     metrics = compute_all_metrics(runs)
-    return {
+    report = {
         "llm_provider": llm.name,
         "dataset": {
             "source": (
@@ -101,9 +140,11 @@ async def run_evaluation() -> dict:
         },
         "runs_completed": len(runs),
         "runs_failed": len(errors),
+        "runs_hit_fallback_path": fallback_count,
         "errors": errors,
         "metrics": metrics,
     }
+    return report, raw_records
 
 
 def render_markdown_report(report: dict) -> str:
@@ -122,6 +163,9 @@ def render_markdown_report(report: dict) -> str:
         f"({report['dataset']['source']})",
         f"- Runs completed: {report['runs_completed']} / "
         f"{report['runs_completed'] + report['runs_failed']}",
+        f"- Runs that hit the LLM-unavailable fallback path (not a genuine model "
+        f"response — see application/nodes/classification.py, drafting.py): "
+        f"{report['runs_hit_fallback_path']} / {report['runs_completed']}",
         "",
         "## Metrics",
         "",
@@ -171,6 +215,13 @@ def render_markdown_report(report: dict) -> str:
             "not LLM classification/generation quality. Re-run with "
             "`TRIAGEAI_LLM_PROVIDER=ollama` once Ollama is installed for LLM-quality numbers."
         )
+    if report["runs_hit_fallback_path"] > 0:
+        lines.append(
+            f"- {report['runs_hit_fallback_path']} of {report['runs_completed']} runs hit the "
+            "LLM-unavailable fallback (a real timeout/retry exhaustion, not a metrics artifact) "
+            "and used a safe default rather than a genuine model response. See "
+            f"`{report['llm_provider']}_raw.jsonl` for which tickets."
+        )
     lines.append(
         "- Groundedness/hallucination detection uses a citation-and-lexical-overlap "
         "heuristic (`domain/groundedness.py`), not an NLI model — see "
@@ -181,14 +232,24 @@ def render_markdown_report(report: dict) -> str:
 
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    report = asyncio.run(run_evaluation())
+    report, raw_records = asyncio.run(run_evaluation())
+    provider = report["llm_provider"]
 
-    (RESULTS_DIR / "latest.json").write_text(json.dumps(report, indent=2))
+    json_path = RESULTS_DIR / f"{provider}.json"
+    report_path = RESULTS_DIR / f"{provider}_report.md"
+    raw_path = RESULTS_DIR / f"{provider}_raw.jsonl"
+
+    json_path.write_text(json.dumps(report, indent=2))
     markdown = render_markdown_report(report)
+    report_path.write_text(markdown)
+    raw_path.write_text("\n".join(json.dumps(r) for r in raw_records) + "\n")
+
+    # Convenience copies for tooling that wants "whatever ran last".
+    (RESULTS_DIR / "latest.json").write_text(json.dumps(report, indent=2))
     (RESULTS_DIR / "latest_report.md").write_text(markdown)
 
     print(markdown)
-    print(f"\nWrote {RESULTS_DIR / 'latest.json'} and {RESULTS_DIR / 'latest_report.md'}")
+    print(f"\nWrote {json_path}, {report_path}, {raw_path}")
 
 
 if __name__ == "__main__":

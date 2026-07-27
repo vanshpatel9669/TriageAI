@@ -117,6 +117,20 @@ than a real entailment model would. The upgrade path is a drop-in
 replacement: `check_groundedness(draft, evidence) -> GroundednessCheck`
 keeps the same signature if backed by an NLI model instead.
 
+*This prediction was confirmed, not theoretical.* Running the full
+evaluation against real `llama3.1:8b` (`eval/results/ollama_report.md`)
+measured a **0% groundedness rate** — not because the model hallucinated
+facts, but because it writes full formatted replies ("Dear User, Thank you
+for reaching out... Best regards, IT Support") where the greeting and
+closing sentences carry no citation and correctly get flagged as
+unsupported by a heuristic that has no concept of "this sentence is filler,
+not a claim." The deterministic `fake` provider never triggered this
+because its canned response is a single, already-cited sentence — it tested
+the mechanism working, not the mechanism under a real model's actual
+writing style. That gap between "tests pass" and "behaves this way against
+a real model" is exactly why the fake-provider report alone was not treated
+as sufficient before wiring up Ollama for real.
+
 **Escalation precision/recall are measured against our own routing policy,
 not an external ground truth.** There's no oracle for "a human should have
 looked at this" on synthetic data. `eval/metrics.py` defines "should
@@ -142,6 +156,56 @@ and fall back to a zero-confidence classification / an explicitly-labeled
 "couldn't generate a response" draft — both of which the routing stage's
 existing rules send to human review. The outage degrades the system to
 "everything goes to a human," not to a crash or a hallucinated response.
+
+## Verified against real infrastructure: what we found
+
+Running against real Docker, real Neo4j, and real Ollama (not mocks, not
+just the deterministic `fake` provider) surfaced three real issues that unit
+tests alone couldn't have caught, each fixed and verified before moving on:
+
+**Timeout tuning was a guess until it was measured.** The resilience
+layer's default LLM call timeout was 15s — a reasonable number for a cloud
+API, and the number every unit test passed against (the `fake` provider
+never actually waits). Against real `llama3.1:8b` on CPU-only local
+inference (no GPU), a single `classify()` call measured **~41s** end to
+end. Every real call was exhausting all 3 retries and falling back to
+human-review — not because anything was broken, but because the timeout
+didn't match the hardware. Fixed with provider-specific configurable
+timeouts (`TRIAGEAI_OLLAMA_TIMEOUT_S=90`, `TRIAGEAI_OPENAI_TIMEOUT_S=20`)
+grounded in the actual measurement, not a round number.
+
+**Test cleanup had a real gap, caught by noticing duplicate data, not by
+reading the code.** `tests/integration/test_neo4j_repositories.py` tags its
+test tickets with an `inttest-` ID prefix and cleans them up by matching
+that prefix. `tests/integration/test_api_full_stack.py` creates tickets
+through the real HTTP API instead, where the ticket ID is server-generated
+— the prefix-based cleanup never touched them, and they silently
+accumulated across test runs. This surfaced as duplicate "similar ticket"
+evidence entries in an unrelated manual smoke test, not as a failing test —
+the leak was invisible to the test suite itself. The first fix attempt
+still failed: cleanup ran after `TestClient`'s context manager exited,
+which triggers the app's lifespan shutdown and closes the DI-managed Neo4j
+driver before the cleanup query could run against it. Fixed by using an
+independently-owned connection for cleanup, executed *inside* the
+`TestClient` context. Verified by running the test twice in a row and
+confirming zero leftover tickets both times — not by re-reading the fix and
+assuming it was correct.
+
+**The evaluation script didn't persist enough to audit its own results.**
+Reviewing the real-Ollama run's aggregate metrics (mean latency 192s, p95
+308s, max 317s) raised a question the aggregates alone couldn't answer: did
+that latency spread mean a few of the 60 "completed" tickets actually hit
+the retry-exhaustion fallback path rather than a genuine model response?
+The pipeline catches `LLMUnavailableError` internally and still returns a
+result, so a fallback-degraded ticket is indistinguishable from a real one
+in the aggregate numbers. `eval/run_evaluation.py` didn't persist per-ticket
+data to check. Fixed by writing `eval/results/{provider}_raw.jsonl` (one
+record per ticket, including a `hit_fallback_path` flag) alongside the
+aggregate report — but this fix landed *after* the flagship 60-ticket
+Ollama run had already completed, so that specific run's answer to "did
+this happen" is stated as an open question in
+`eval/results/ollama_report.md`, not retroactively fabricated as either yes
+or no.
 
 ## Production-readiness: what's built vs. documented as future work
 

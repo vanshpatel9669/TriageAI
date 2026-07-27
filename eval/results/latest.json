@@ -7,6 +7,7 @@
   },
   "runs_completed": 60,
   "runs_failed": 0,
+  "runs_hit_fallback_path": 0,
   "errors": [],
   "metrics": {
     "sample_size": 60,
@@ -19,10 +20,10 @@
     "escalation_precision": 1.0,
     "escalation_recall": 0.6176,
     "latency": {
-      "mean_ms": 99.4,
-      "p50_ms": 96.91,
-      "p95_ms": 124.47,
-      "max_ms": 133.56
+      "mean_ms": 98.35,
+      "p50_ms": 97.23,
+      "p95_ms": 107.79,
+      "max_ms": 123.38
     }
   }
 }
