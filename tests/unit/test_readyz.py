@@ -22,6 +22,7 @@ def app_with_neo4j_enabled(monkeypatch):
         dependencies.get_neo4j_connection,
         dependencies.get_graph_repo,
         dependencies.get_ticket_repo,
+        dependencies.get_audit_repo,
         dependencies.get_pipeline,
     ):
         cached.cache_clear()
@@ -34,6 +35,7 @@ def app_with_neo4j_enabled(monkeypatch):
         dependencies.get_neo4j_connection,
         dependencies.get_graph_repo,
         dependencies.get_ticket_repo,
+        dependencies.get_audit_repo,
         dependencies.get_pipeline,
     ):
         cached.cache_clear()

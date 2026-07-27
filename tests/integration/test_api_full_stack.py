@@ -34,6 +34,7 @@ def api_client(monkeypatch):
         dependencies.get_neo4j_connection,
         dependencies.get_graph_repo,
         dependencies.get_ticket_repo,
+        dependencies.get_audit_repo,
         dependencies.get_pipeline,
     ):
         cached.cache_clear()
@@ -59,6 +60,7 @@ def api_client(monkeypatch):
         dependencies.get_neo4j_connection,
         dependencies.get_graph_repo,
         dependencies.get_ticket_repo,
+        dependencies.get_audit_repo,
         dependencies.get_pipeline,
     ):
         cached.cache_clear()
@@ -80,8 +82,14 @@ def _delete_test_tickets_sync() -> None:
 async def _delete_test_tickets() -> None:
     connection = Neo4jConnection(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
     async with connection.session() as session:
+        # Tickets created through the real API now also get an AuditEvent
+        # (pipeline.run() records one on every run) — deleting only the
+        # Ticket node via DETACH DELETE would leave that AuditEvent orphaned,
+        # same gap just fixed in conftest.py's neo4j_connection teardown.
         await session.run(
-            "MATCH (t:Ticket) WHERE t.requester_email = $email DETACH DELETE t",
+            "MATCH (t:Ticket) WHERE t.requester_email = $email "
+            "OPTIONAL MATCH (t)-[:AUDITED_BY]->(a:AuditEvent) "
+            "DETACH DELETE t, a",
             email=TEST_REQUESTER_EMAIL,
         )
     await connection.close()

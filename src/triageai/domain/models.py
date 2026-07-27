@@ -101,3 +101,26 @@ class TriageResult(BaseModel):
     draft: DraftResponse
     routing: RoutingResult
     latency_ms: float
+
+
+class AuditEvent(BaseModel):
+    """One immutable, append-only record of a triage decision.
+
+    Deliberately separate from TriageResult/Ticket: a Ticket node can be
+    reprocessed and its result_json overwritten (see Neo4jTicketRepository),
+    but an audit trail must record what was decided at the time it was
+    decided, permanently — that's a different guarantee from "the ticket's
+    current state," even though both are populated from the same pipeline
+    run.
+    """
+
+    event_id: str = Field(default_factory=_new_id)
+    ticket_id: str
+    occurred_at: datetime = Field(default_factory=_utcnow)
+    llm_provider: str
+    routing_strategy: str
+    category: TicketCategory
+    confidence: float = Field(ge=0.0, le=1.0)
+    routing_decision: RoutingDecision
+    routing_reasons: list[str]
+    latency_ms: float

@@ -3,6 +3,7 @@ from __future__ import annotations
 from tests.integration.conftest import requires_neo4j
 from triageai.domain.models import Classification, Ticket, TicketCategory, Urgency
 from triageai.infrastructure.persistence.neo4j_repositories import (
+    Neo4jAuditLogRepository,
     Neo4jGraphMemoryRepository,
     Neo4jTicketRepository,
 )
@@ -63,6 +64,7 @@ async def test_ticket_repository_save_and_get_round_trip(neo4j_connection):
     )
 
     ticket_repo = Neo4jTicketRepository(neo4j_connection)
+    audit_repo = Neo4jAuditLogRepository(neo4j_connection)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         vector_repo = ChromaKnowledgeRepository(tmp_dir, "inttest_docs")
@@ -72,6 +74,7 @@ async def test_ticket_repository_save_and_get_round_trip(neo4j_connection):
             graph_repo=InMemoryGraphMemoryRepository(),
             ticket_repo=ticket_repo,
             routing_strategy=ConfidenceAndRiskRoutingStrategy(confidence_threshold=0.75),
+            audit_repo=audit_repo,
         )
         ticket = _ticket("roundtrip-1", "Locked out of account", "Password locked me out, urgent")
         result = await pipeline.run(ticket)
@@ -81,6 +84,23 @@ async def test_ticket_repository_save_and_get_round_trip(neo4j_connection):
     assert fetched is not None
     assert fetched.ticket.ticket_id == result.ticket.ticket_id
     assert fetched.classification.category == result.classification.category
+
+    # Verify the audit event actually landed in Neo4j — not just that
+    # record_event() didn't raise. Queried independently of AuditLogRepository
+    # itself, so this can't pass just because both sides share a bug.
+    async with neo4j_connection.session() as session:
+        query_result = await session.run(
+            "MATCH (t:Ticket {ticket_id: $ticket_id})-[:AUDITED_BY]->(a:AuditEvent) "
+            "RETURN a.category AS category, a.routing_decision AS routing_decision, "
+            "a.llm_provider AS llm_provider",
+            ticket_id=ticket.ticket_id,
+        )
+        audit_record = await query_result.single()
+
+    assert audit_record is not None
+    assert audit_record["category"] == result.classification.category.value
+    assert audit_record["routing_decision"] == result.routing.decision.value
+    assert audit_record["llm_provider"] == "fake"
 
 
 @requires_neo4j

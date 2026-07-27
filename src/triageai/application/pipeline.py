@@ -18,13 +18,14 @@ from triageai.application.nodes.retrieval import RetrievalNode
 from triageai.application.nodes.routing import RoutingNode
 from triageai.application.state import PipelineState
 from triageai.domain.interfaces import (
+    AuditLogRepository,
     GraphMemoryRepository,
     LLMProvider,
     RoutingStrategy,
     TicketRepository,
     VectorSearchRepository,
 )
-from triageai.domain.models import Ticket, TriageResult
+from triageai.domain.models import AuditEvent, Ticket, TriageResult
 
 
 class TriagePipeline:
@@ -35,9 +36,13 @@ class TriagePipeline:
         graph_repo: GraphMemoryRepository,
         ticket_repo: TicketRepository,
         routing_strategy: RoutingStrategy,
+        audit_repo: AuditLogRepository,
     ) -> None:
         self._graph_repo = graph_repo
         self._ticket_repo = ticket_repo
+        self._audit_repo = audit_repo
+        self._llm_name = llm.name
+        self._routing_strategy_name = routing_strategy.name
         self._graph = self._build_graph(llm, vector_repo, graph_repo, routing_strategy)
 
     @staticmethod
@@ -80,4 +85,16 @@ class TriagePipeline:
 
         await self._graph_repo.record_ticket_relationship(result.ticket, result.classification)
         await self._ticket_repo.save(result)
+        await self._audit_repo.record_event(
+            AuditEvent(
+                ticket_id=result.ticket.ticket_id,
+                llm_provider=self._llm_name,
+                routing_strategy=self._routing_strategy_name,
+                category=result.classification.category,
+                confidence=result.classification.confidence,
+                routing_decision=result.routing.decision,
+                routing_reasons=result.routing.reasons,
+                latency_ms=result.latency_ms,
+            )
+        )
         return result

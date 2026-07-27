@@ -269,7 +269,7 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     kb_path = OUTPUT_DIR / "knowledge_base.json"
-    kb_path.write_text(json.dumps(KNOWLEDGE_BASE, indent=2))
+    kb_path.write_text(json.dumps(KNOWLEDGE_BASE, indent=2) + "\n")
 
     tickets = generate_tickets(count=60)
     tickets_path = OUTPUT_DIR / "tickets.jsonl"

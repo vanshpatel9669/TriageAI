@@ -46,6 +46,7 @@ from triageai.infrastructure.persistence.chroma_knowledge_repository import (  #
     ChromaKnowledgeRepository,
 )
 from triageai.infrastructure.persistence.in_memory_repositories import (  # noqa: E402
+    InMemoryAuditLogRepository,
     InMemoryGraphMemoryRepository,
     InMemoryTicketRepository,
 )
@@ -100,6 +101,7 @@ async def run_evaluation() -> tuple[dict, list[dict]]:
             graph_repo=InMemoryGraphMemoryRepository(),
             ticket_repo=InMemoryTicketRepository(),
             routing_strategy=routing_strategy,
+            audit_repo=InMemoryAuditLogRepository(),
         )
 
         runs: list[EvaluationRun] = []
@@ -243,14 +245,18 @@ def main() -> None:
     report_path = RESULTS_DIR / f"{provider}_report.md"
     raw_path = RESULTS_DIR / f"{provider}_raw.jsonl"
 
-    json_path.write_text(json.dumps(report, indent=2))
+    # Trailing newline on every write: pre-commit's end-of-file-fixer hook
+    # otherwise rewrites these files on the very next commit, which blocks
+    # that commit attempt (a hook that modifies files fails the commit that
+    # triggered it) — happened repeatedly before this was fixed here.
+    json_path.write_text(json.dumps(report, indent=2) + "\n")
     markdown = render_markdown_report(report)
-    report_path.write_text(markdown)
+    report_path.write_text(markdown + "\n")
     raw_path.write_text("\n".join(json.dumps(r) for r in raw_records) + "\n")
 
     # Convenience copies for tooling that wants "whatever ran last".
-    (RESULTS_DIR / "latest.json").write_text(json.dumps(report, indent=2))
-    (RESULTS_DIR / "latest_report.md").write_text(markdown)
+    (RESULTS_DIR / "latest.json").write_text(json.dumps(report, indent=2) + "\n")
+    (RESULTS_DIR / "latest_report.md").write_text(markdown + "\n")
 
     print(markdown)
     print(f"\nWrote {json_path}, {report_path}, {raw_path}")

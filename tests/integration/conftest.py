@@ -80,9 +80,14 @@ async def neo4j_connection() -> AsyncIterator[Neo4jConnection]:
     # API-created test tickets leak into later runs' similar-ticket search
     # results, found while manually smoke-testing the full stack.
     async with connection.session() as session:
+        # OPTIONAL MATCH + collect(a) so a Ticket with no AuditEvent (older
+        # test data, or a test that never wired up the audit repo) still
+        # matches and gets deleted — a plain MATCH on the AuditEvent edge
+        # would silently skip tickets with no audit trail instead.
         await session.run(  # type: ignore[attr-defined]
             "MATCH (t:Ticket) "
             "WHERE t.ticket_id STARTS WITH 'inttest-' OR t.requester_email = 'inttest@example.com' "
-            "DETACH DELETE t"
+            "OPTIONAL MATCH (t)-[:AUDITED_BY]->(a:AuditEvent) "
+            "DETACH DELETE t, a"
         )
     await connection.close()

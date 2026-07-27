@@ -22,6 +22,7 @@ from neo4j import AsyncDriver, AsyncGraphDatabase
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from triageai.domain.models import (
+    AuditEvent,
     Classification,
     DraftResponse,
     EvidenceSnippet,
@@ -156,6 +157,45 @@ class Neo4jTicketRepository:
         if record is None or record["result_json"] is None:
             return None
         return _deserialize_triage_result(record["result_json"])
+
+
+class Neo4jAuditLogRepository:
+    """Satisfies AuditLogRepository — one CREATE per event (never MERGE/SET on
+    an existing node), so a later ticket reprocessing can never silently
+    overwrite an earlier decision's audit record the way Ticket.result_json
+    can be overwritten on the Ticket node itself.
+    """
+
+    def __init__(self, connection: Neo4jConnection) -> None:
+        self._connection = connection
+
+    @_neo4j_retry
+    async def record_event(self, event: AuditEvent) -> None:
+        cypher = """
+        MATCH (t:Ticket {ticket_id: $ticket_id})
+        CREATE (a:AuditEvent {
+            event_id: $event_id, occurred_at: $occurred_at,
+            llm_provider: $llm_provider, routing_strategy: $routing_strategy,
+            category: $category, confidence: $confidence,
+            routing_decision: $routing_decision, routing_reasons: $routing_reasons,
+            latency_ms: $latency_ms
+        })
+        CREATE (t)-[:AUDITED_BY]->(a)
+        """
+        async with self._connection.session() as session:
+            await session.run(  # type: ignore[attr-defined]
+                cypher,
+                ticket_id=event.ticket_id,
+                event_id=event.event_id,
+                occurred_at=event.occurred_at.isoformat(),
+                llm_provider=event.llm_provider,
+                routing_strategy=event.routing_strategy,
+                category=event.category.value,
+                confidence=event.confidence,
+                routing_decision=event.routing_decision.value,
+                routing_reasons=event.routing_reasons,
+                latency_ms=event.latency_ms,
+            )
 
 
 def _deserialize_triage_result(payload: str) -> TriageResult:

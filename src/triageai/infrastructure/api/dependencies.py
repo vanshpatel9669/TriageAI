@@ -13,17 +13,19 @@ from functools import lru_cache
 
 from triageai.application.pipeline import TriagePipeline
 from triageai.config import Settings, get_settings
-from triageai.domain.interfaces import GraphMemoryRepository, TicketRepository
+from triageai.domain.interfaces import AuditLogRepository, GraphMemoryRepository, TicketRepository
 from triageai.domain.routing_strategies.registry import build_routing_strategy
 from triageai.infrastructure.llm.provider_factory import build_llm_provider
 from triageai.infrastructure.persistence.chroma_knowledge_repository import (
     ChromaKnowledgeRepository,
 )
 from triageai.infrastructure.persistence.in_memory_repositories import (
+    InMemoryAuditLogRepository,
     InMemoryGraphMemoryRepository,
     InMemoryTicketRepository,
 )
 from triageai.infrastructure.persistence.neo4j_repositories import (
+    Neo4jAuditLogRepository,
     Neo4jConnection,
     Neo4jGraphMemoryRepository,
     Neo4jTicketRepository,
@@ -103,6 +105,14 @@ def get_ticket_repo() -> TicketRepository:
 
 
 @lru_cache
+def get_audit_repo() -> AuditLogRepository:
+    settings = get_cached_settings()
+    if settings.use_in_memory_graph:
+        return InMemoryAuditLogRepository()
+    return Neo4jAuditLogRepository(get_neo4j_connection())
+
+
+@lru_cache
 def get_pipeline() -> TriagePipeline:
     settings = get_cached_settings()
     llm = build_llm_provider(settings)
@@ -115,6 +125,7 @@ def get_pipeline() -> TriagePipeline:
         graph_repo=get_graph_repo(),
         ticket_repo=get_ticket_repo(),
         routing_strategy=routing_strategy,
+        audit_repo=get_audit_repo(),
     )
 
 

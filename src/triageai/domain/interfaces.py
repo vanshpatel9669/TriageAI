@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from triageai.domain.models import (
+    AuditEvent,
     Classification,
     DraftResponse,
     EvidenceSnippet,
@@ -48,6 +49,18 @@ class TicketRepository(Protocol):
     async def save(self, result: TriageResult) -> None: ...
 
     async def get(self, ticket_id: str) -> TriageResult | None: ...
+
+
+class AuditLogRepository(Protocol):
+    """Append-only audit trail, one record per triage decision.
+
+    Distinct from TicketRepository: a Ticket's stored result can be
+    overwritten if reprocessed, but an audit event is never updated or
+    deleted through this interface — see domain/models.py's AuditEvent for
+    why that's a different guarantee worth its own repository.
+    """
+
+    async def record_event(self, event: AuditEvent) -> None: ...
 
 
 class LLMProvider(Protocol):

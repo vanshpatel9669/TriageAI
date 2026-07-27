@@ -6,7 +6,7 @@ only change Phase 3 needs to make here.
 
 from __future__ import annotations
 
-from triageai.domain.models import Classification, EvidenceSnippet, Ticket, TriageResult
+from triageai.domain.models import AuditEvent, Classification, EvidenceSnippet, Ticket, TriageResult
 
 
 class InMemoryGraphMemoryRepository:
@@ -55,3 +55,19 @@ class InMemoryTicketRepository:
 
     async def get(self, ticket_id: str) -> TriageResult | None:
         return self._store.get(ticket_id)
+
+
+class InMemoryAuditLogRepository:
+    """Satisfies AuditLogRepository with an append-only list. No persistence
+    across restarts — real audit trails need Neo4jAuditLogRepository.
+    """
+
+    def __init__(self) -> None:
+        self._events: list[AuditEvent] = []
+
+    async def record_event(self, event: AuditEvent) -> None:
+        self._events.append(event)
+
+    def all_events(self) -> list[AuditEvent]:
+        """Test/debug helper — not part of the AuditLogRepository Protocol."""
+        return list(self._events)
