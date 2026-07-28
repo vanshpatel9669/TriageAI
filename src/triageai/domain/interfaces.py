@@ -72,6 +72,11 @@ class LLMProvider(Protocol):
     """
 
     name: str
+    # The specific model string (e.g. "llama3.1:8b"), distinct from `name`
+    # (the provider, e.g. "ollama"). Two decisions both made by "ollama" but
+    # different model versions are not the same decision for audit/
+    # reproducibility purposes — this is what AuditEvent.model records.
+    model: str
 
     async def classify(self, ticket: Ticket) -> Classification: ...
 

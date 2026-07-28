@@ -42,6 +42,7 @@ class TriagePipeline:
         self._ticket_repo = ticket_repo
         self._audit_repo = audit_repo
         self._llm_name = llm.name
+        self._llm_model = llm.model
         self._routing_strategy_name = routing_strategy.name
         self._graph = self._build_graph(llm, vector_repo, graph_repo, routing_strategy)
 
@@ -89,6 +90,7 @@ class TriagePipeline:
             AuditEvent(
                 ticket_id=result.ticket.ticket_id,
                 llm_provider=self._llm_name,
+                llm_model=self._llm_model,
                 routing_strategy=self._routing_strategy_name,
                 category=result.classification.category,
                 confidence=result.classification.confidence,

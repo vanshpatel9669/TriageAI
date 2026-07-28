@@ -92,7 +92,7 @@ async def test_ticket_repository_save_and_get_round_trip(neo4j_connection):
         query_result = await session.run(
             "MATCH (t:Ticket {ticket_id: $ticket_id})-[:AUDITED_BY]->(a:AuditEvent) "
             "RETURN a.category AS category, a.routing_decision AS routing_decision, "
-            "a.llm_provider AS llm_provider",
+            "a.llm_provider AS llm_provider, a.llm_model AS llm_model",
             ticket_id=ticket.ticket_id,
         )
         audit_record = await query_result.single()
@@ -101,6 +101,7 @@ async def test_ticket_repository_save_and_get_round_trip(neo4j_connection):
     assert audit_record["category"] == result.classification.category.value
     assert audit_record["routing_decision"] == result.routing.decision.value
     assert audit_record["llm_provider"] == "fake"
+    assert audit_record["llm_model"] == "keyword-rules-v1"
 
 
 @requires_neo4j

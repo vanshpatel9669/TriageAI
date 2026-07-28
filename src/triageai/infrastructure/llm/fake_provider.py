@@ -14,6 +14,7 @@ class FakeLLMProvider:
     """Rule-based stand-in satisfying the LLMProvider protocol."""
 
     name = "fake"
+    model = "keyword-rules-v1"  # not a real model — versioned in case the rules change
 
     async def classify(self, ticket: Ticket) -> Classification:
         text = f"{ticket.subject} {ticket.body}".lower()

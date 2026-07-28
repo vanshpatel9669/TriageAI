@@ -118,6 +118,10 @@ class AuditEvent(BaseModel):
     ticket_id: str
     occurred_at: datetime = Field(default_factory=_utcnow)
     llm_provider: str
+    # The specific model string (e.g. "llama3.1:8b"), distinct from
+    # llm_provider (e.g. "ollama") — two decisions both made by "ollama" but
+    # different model versions aren't the same decision for audit purposes.
+    llm_model: str
     routing_strategy: str
     category: TicketCategory
     confidence: float = Field(ge=0.0, le=1.0)

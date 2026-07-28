@@ -18,6 +18,16 @@ inherently security-sensitive — regardless of how fluent the response
 sounds. See [`docs/architecture.md`](docs/architecture.md) for the full
 design rationale and every trade-off made along the way.
 
+**This includes prompt injection, tested against the real model, not
+assumed away.** A ticket body telling the model to "ignore all previous
+instructions" and self-report `confidence=1.0` fully succeeded against the
+original prompts — a reproduced vulnerability, not a hypothetical one.
+Hardening the prompts with explicit data/instruction delimiting measurably
+changed that (see `docs/architecture.md`'s "Security: prompt injection"
+section for the full before/after), and `tests/integration/test_prompt_injection.py`
+keeps testing it against a real model on every run that has one available,
+not just once.
+
 ## What's actually measured, not claimed
 
 Every number below comes from `eval/run_evaluation.py`, is reproducible by
@@ -166,6 +176,17 @@ the full integration suite for real.
 - **Escalation precision/recall are measured against this project's own
   routing policy**, not an external ground truth — there isn't one for
   synthetic data. The definition is stated explicitly in `eval/metrics.py`.
+- **Prompt injection hardening is a measured improvement, not a proven
+  complete defense** — three attack phrasings against one model, not an
+  exhaustive red-team. See `docs/architecture.md`'s "Security: prompt
+  injection" section for the full before/after and what's not covered.
+- **No token/cost tracking**, despite the data being available in every
+  LLM response — a deliberate deferral, not an oversight: `LLMProvider`
+  instances are shared singletons across concurrent requests, and storing
+  per-call usage as instance state would be a real concurrency bug.
+  Doing this right means changing the `LLMProvider` Protocol's return
+  types, not bolting on a stateful shortcut — scoped out rather than
+  rushed. See `docs/architecture.md`.
 - **JWT auth, RBAC, rate limiting, Redis caching, and background workers are
   documented as future work, not built** — seeing a table of exactly where
   each would plug in and why it wasn't needed for this project's scope is in

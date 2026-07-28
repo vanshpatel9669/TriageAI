@@ -105,6 +105,7 @@ async def test_pipeline_records_an_audit_event_matching_the_result(pipeline, rep
     event = events[0]
     assert event.ticket_id == result.ticket.ticket_id
     assert event.llm_provider == "fake"
+    assert event.llm_model == "keyword-rules-v1"
     assert event.routing_strategy == "confidence_and_risk"
     assert event.category == result.classification.category
     assert event.confidence == result.classification.confidence

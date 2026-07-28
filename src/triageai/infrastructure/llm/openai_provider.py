@@ -34,7 +34,7 @@ class OpenAILLMProvider:
     def __init__(
         self, model: str = "gpt-4o-mini", api_key: str | None = None, timeout_s: float = 20.0
     ) -> None:
-        self._model = model
+        self.model = model
         self._api_key = api_key
         self._timeout_s = timeout_s
         self._client: ChatOpenAI | None = None
@@ -45,7 +45,7 @@ class OpenAILLMProvider:
             from pydantic import SecretStr
 
             key = SecretStr(self._api_key) if self._api_key else None
-            self._client = ChatOpenAI(model=self._model, api_key=key, temperature=0.0)
+            self._client = ChatOpenAI(model=self.model, api_key=key, temperature=0.0)
         return self._client
 
     async def classify(self, ticket: Ticket) -> Classification:

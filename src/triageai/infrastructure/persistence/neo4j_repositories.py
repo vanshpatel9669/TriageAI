@@ -175,7 +175,8 @@ class Neo4jAuditLogRepository:
         MATCH (t:Ticket {ticket_id: $ticket_id})
         CREATE (a:AuditEvent {
             event_id: $event_id, occurred_at: $occurred_at,
-            llm_provider: $llm_provider, routing_strategy: $routing_strategy,
+            llm_provider: $llm_provider, llm_model: $llm_model,
+            routing_strategy: $routing_strategy,
             category: $category, confidence: $confidence,
             routing_decision: $routing_decision, routing_reasons: $routing_reasons,
             latency_ms: $latency_ms
@@ -189,6 +190,7 @@ class Neo4jAuditLogRepository:
                 event_id=event.event_id,
                 occurred_at=event.occurred_at.isoformat(),
                 llm_provider=event.llm_provider,
+                llm_model=event.llm_model,
                 routing_strategy=event.routing_strategy,
                 category=event.category.value,
                 confidence=event.confidence,
