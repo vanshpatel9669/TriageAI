@@ -53,7 +53,7 @@ jobs:
       - name: Run evaluation (fake provider — see eval/results/latest_report.md
           for what this measures)
         run: python eval/run_evaluation.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: evaluation-report
           path: eval/results/
