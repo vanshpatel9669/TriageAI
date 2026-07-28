@@ -117,6 +117,10 @@ TRIAGEAI_LLM_PROVIDER=fake uvicorn triageai.infrastructure.api.main:app --reload
 This runs with the deterministic fake provider and an in-memory graph
 repository by default — no external services required to see it work.
 
+Hitting a dependency resolution issue with `pyproject.toml`'s `>=` bounds?
+`pip install -r requirements-lock.txt` installs the exact versions this
+project was last verified against.
+
 ### Try it
 
 ```bash
@@ -169,6 +173,16 @@ the full integration suite for real.
 - **Docker build/compose and the Neo4j/Ollama integration suite are verified
   in CI, not necessarily on every contributor's machine** — see
   `.github/workflows/ci.yml`.
+- **The Docker image is ~870MB.** A multi-stage build was tried and
+  measured — it didn't help (888MB, marginally larger), because the bulk is
+  genuinely-needed dependency weight, not discardable build artifacts:
+  `chromadb` alone pulls in an 84MB `kubernetes` client library this
+  project never uses, plus `onnxruntime` (51MB), `numpy` (71MB), and
+  similar. Trimming this means dependency surgery (e.g. installing
+  `chromadb` in a way that skips its Kubernetes-client extra, or swapping
+  to a lighter vector store), not a Dockerfile change — left as a
+  specifically-diagnosed next step rather than an unverified "could
+  probably be optimized."
 
 ## License
 
