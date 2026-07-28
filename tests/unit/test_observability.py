@@ -10,6 +10,8 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from prometheus_client import CollectorRegistry
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from triageai.infrastructure.observability import build_tracer_provider, instrument_app
 
@@ -45,7 +47,16 @@ def test_build_tracer_provider_with_no_exporters_still_works_safely():
     # not sent anywhere. Should not raise.
 
 
-def test_metrics_endpoint_reflects_real_request_counts():
+def test_metrics_endpoint_exists_and_returns_prometheus_format():
+    """Smoke-checks the real production wrapper (instrument_app) against
+    the actual global registry it uses in production. Doesn't assert exact
+    counts — see the isolated-registry test below for that — because the
+    global prometheus_client registry is shared process-wide, and other
+    tests' apps in the same pytest session add their own metrics into it
+    too (found the hard way: this test originally asserted an exact count
+    of 2 and failed intermittently depending on what else had run first in
+    the same process).
+    """
     app = FastAPI()
 
     @app.get("/ping")
@@ -56,15 +67,39 @@ def test_metrics_endpoint_reflects_real_request_counts():
 
     with TestClient(app) as client:
         client.get("/ping")
-        client.get("/ping")
         metrics_response = client.get("/metrics")
 
     assert metrics_response.status_code == 200
     assert "text/plain" in metrics_response.headers["content-type"]
+
+
+def test_metrics_reflect_exact_request_counts_with_an_isolated_registry():
+    """prometheus_client's default CollectorRegistry is also a process-global
+    singleton (same category of problem as OTel's TracerProvider, different
+    library) — multiple test apps calling Instrumentator() with no explicit
+    registry all write into the same global one, so asserting an exact count
+    against it is only reliable if this test's app is the only thing that
+    ever touched it, which isn't true in a shared pytest session. Passing an
+    isolated CollectorRegistry sidesteps that entirely, the same way the
+    OTel span test above uses its own TracerProvider instead of the global
+    one configure_tracing() manages.
+    """
+    registry = CollectorRegistry()
+    app = FastAPI()
+
+    @app.get("/ping")
+    def ping() -> dict:
+        return {"ok": True}
+
+    Instrumentator(registry=registry).instrument(app).expose(app, endpoint="/metrics")
+
+    with TestClient(app) as client:
+        client.get("/ping")
+        client.get("/ping")
+        metrics_response = client.get("/metrics")
+
     body = metrics_response.text
     assert 'handler="/ping"' in body
-    # 2 pings + the /metrics request itself in flight isn't counted yet at
-    # scrape time, so assert on the ping count specifically, not a total.
     ping_lines = [
         line
         for line in body.splitlines()
