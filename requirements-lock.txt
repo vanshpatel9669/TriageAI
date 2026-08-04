@@ -62,7 +62,7 @@ langgraph==1.2.9
 langgraph-checkpoint==4.1.1
 langgraph-prebuilt==1.1.0
 langgraph-sdk==0.4.2
-langsmith==0.10.10
+langsmith==0.10.15
 librt==0.13.0
 markdown-it-py==4.2.0
 mdurl==0.1.2
