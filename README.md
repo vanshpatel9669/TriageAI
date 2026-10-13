@@ -2,7 +2,7 @@
 
 A production-oriented agent harness for IT support ticket triage: classify,
 retrieve grounded evidence, draft a cited response, and route low-confidence
-or high-risk tickets to a human — instead of a single opaque LLM call.
+or high-risk tickets to a human - instead of a single opaque LLM call.
 
 Built with Clean Architecture, a Repository Pattern over pluggable storage
 (Chroma + Neo4j), dependency injection via FastAPI, and a provider-agnostic
