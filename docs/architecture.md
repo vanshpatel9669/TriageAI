@@ -301,7 +301,7 @@ them, not to word this section more carefully. What's left below is
 genuinely out of scope, not quietly downgraded.
 
 JWT auth, RBAC, Redis-backed rate limiting, Redis caching, and a
-background-worker queue remain undone, for a solo portfolio project with no
+background-worker queue remain undone, for a capstone project with no
 real multi-tenant traffic to protect. Building those without a real need
 for them would be exactly the kind of unmotivated enterprise machinery that
 reads as checkbox-driven rather than judgment-driven. Here's what each
@@ -309,7 +309,7 @@ would look like if the system needed it, and where it plugs in:
 
 | Feature | Where it would plug in | Why it's not built here |
 |---|---|---|
-| JWT authentication | A FastAPI dependency added to the `PipelineDep`/`TicketRepoDep` chain in `infrastructure/api/routes.py`, validating a bearer token before the request reaches a route | No multi-tenant access control need for a single-operator portfolio service |
+| JWT authentication | A FastAPI dependency added to the `PipelineDep`/`TicketRepoDep` chain in `infrastructure/api/routes.py`, validating a bearer token before the request reaches a route | No multi-tenant access control need for a single-operator service |
 | RBAC | An authorization check alongside JWT, gating e.g. who can view another user's ticket via `GET /tickets/{id}` | Same as above — no distinct roles exist yet to authorize between |
 | Rate limiting | `slowapi` (Redis- or in-memory-backed) as FastAPI middleware, ahead of the existing request-context middleware in `main.py` | No public-facing traffic to protect against abuse |
 | Redis caching | A cache-aside layer in front of `ChromaKnowledgeRepository.search_knowledge_docs` for repeated queries | KB doc set is small (10 synthetic docs); no measured latency problem it would solve |
